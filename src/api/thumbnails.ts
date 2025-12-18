@@ -4,6 +4,7 @@ import { getVideo, updateVideo } from "../db/videos";
 import type { ApiConfig } from "../config";
 import type { BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
+import { getInMemoryURL } from "./assets";
 
 type Thumbnail = {
   data: ArrayBuffer;
@@ -47,38 +48,47 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
 
   console.log("uploading thumbnail for video", videoId, "by user", userID);
 
+  const video = await getVideo(cfg.db, videoId);
+  if (!video) {
+      throw new NotFoundError("Video not found");
+  }
+
+  if (video.userID !== userID) {
+      throw new UserForbiddenError("User is not the owner of this video");
+  }
+
   const formData = await req.formData();
   const file = formData.get("thumbnail");
   if (!(file instanceof File)) {
     throw new BadRequestError("Thumbnail file missing");
-  };
+  }
 
   const MAX_UPLOAD_SIZE = 10 << 20; // 10485760
+
   if (file.size > MAX_UPLOAD_SIZE) {
-    throw new BadRequestError(`File exceeds maximum upload size of ${MAX_UPLOAD_SIZE} (bytes)`);
-  };
+    throw new BadRequestError(`Thumbnail file exceeds maximum upload size of ${MAX_UPLOAD_SIZE} (bytes)`);
+  }
+
   const mediaType = file.type;
-  const mediaBuffer = await file.arrayBuffer();
+  if (!mediaType) {
+    throw new BadRequestError("Missing Content-Type for thumbnail");
+  }
 
-  const video = await getVideo(cfg.db, videoId);
-  if (!video) {
-      throw new NotFoundError("Video not found");
-  };
-
-  if (video.userID !== userID) {
-      throw new UserForbiddenError("Video userId doesn't match input userID");
-  };
+  const fileData = await file.arrayBuffer();
+  if (!fileData) {
+    throw new Error("Error reading file data");
+  }
   
-  videoThumbnails.set(videoId, {data: mediaBuffer, mediaType: mediaType} satisfies Thumbnail);
-  const thumbnailURL = `http://localhost:${cfg.port}/api/thumbnails/${videoId}`;
+  videoThumbnails.set(videoId, {data: fileData, mediaType: mediaType} satisfies Thumbnail);
+  
+  const thumbnailURL = getInMemoryURL(cfg, videoId);
   video.thumbnailURL = thumbnailURL;
-
   await updateVideo(cfg.db, video);
 
-  const updatedVideo = await getVideo(cfg.db, videoId);
-  if (!updatedVideo) {
-      throw new NotFoundError("Video not found");
-  };
+  // const updatedVideo = await getVideo(cfg.db, videoId);
+  // if (!updatedVideo) {
+  //     throw new NotFoundError("Video not found");
+  // }
   
-  return respondWithJSON(200, updatedVideo);
+  return respondWithJSON(200, video);
 };
