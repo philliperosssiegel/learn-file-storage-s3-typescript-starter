@@ -84,11 +84,6 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   const thumbnailURL = getInMemoryURL(cfg, videoId);
   video.thumbnailURL = thumbnailURL;
   await updateVideo(cfg.db, video);
-
-  // const updatedVideo = await getVideo(cfg.db, videoId);
-  // if (!updatedVideo) {
-  //     throw new NotFoundError("Video not found");
-  // }
   
   return respondWithJSON(200, video);
 };
