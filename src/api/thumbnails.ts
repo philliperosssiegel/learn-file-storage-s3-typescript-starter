@@ -5,6 +5,7 @@ import type { ApiConfig } from "../config";
 import type { BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import { getInMemoryURL } from "./assets";
+import { Buffer } from "node:buffer";
 
 type Thumbnail = {
   data: ArrayBuffer;
@@ -78,11 +79,13 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   if (!fileData) {
     throw new Error("Error reading file data");
   }
+  const strBuffer = Buffer.from(fileData).toString("base64");
+  const dataURL = `data:${mediaType};base64,${strBuffer}`;
   
-  videoThumbnails.set(videoId, {data: fileData, mediaType: mediaType} satisfies Thumbnail);
+  // videoThumbnails.set(videoId, {data: fileData, mediaType: mediaType} satisfies Thumbnail);
   
-  const thumbnailURL = getInMemoryURL(cfg, videoId);
-  video.thumbnailURL = thumbnailURL;
+  // const thumbnailURL = getInMemoryURL(cfg, videoId);
+  video.thumbnailURL = dataURL;
   await updateVideo(cfg.db, video);
   
   return respondWithJSON(200, video);
