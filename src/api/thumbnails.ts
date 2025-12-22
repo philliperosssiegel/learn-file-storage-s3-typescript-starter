@@ -4,7 +4,8 @@ import { getVideo, updateVideo } from "../db/videos";
 import type { ApiConfig } from "../config";
 import type { BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
-import { Buffer } from "node:buffer";
+// import { Buffer } from "node:buffer";
+import path from "node:path";
 
 export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   const { videoId } = req.params as { videoId?: string };
@@ -43,14 +44,24 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
     throw new BadRequestError("Missing Content-Type for thumbnail");
   }
 
+  const fileExtension = mediaType.split("/")[1];
+  if (!fileExtension) {
+    throw new BadRequestError("Invalid file.type, expecting file extension");
+  };
+
   const fileData = await file.arrayBuffer();
   if (!fileData) {
     throw new Error("Error reading file data");
   }
-  const base64Encoded = Buffer.from(fileData).toString("base64");
-  const base64DataURL = `data:${mediaType};base64,${base64Encoded}`;
+
+  const mediaPath = path.join(cfg.assetsRoot, `${videoId}.${fileExtension}`); 
+  await Bun.write(mediaPath, fileData);
+
+  // const base64Encoded = Buffer.from(fileData).toString("base64");
+  // const base64DataURL = `data:${mediaType};base64,${base64Encoded}`;
   
-  video.thumbnailURL = base64DataURL;
+  // video.thumbnailURL = base64DataURL;
+  video.thumbnailURL = `http://localhost:${cfg.port}/assets/${videoId}.${fileExtension}`;
   await updateVideo(cfg.db, video);
   
   return respondWithJSON(200, video);
