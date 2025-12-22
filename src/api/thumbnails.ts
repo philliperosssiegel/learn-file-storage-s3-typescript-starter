@@ -5,7 +5,7 @@ import type { ApiConfig } from "../config";
 import type { BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 // import path from "node:path";
-import { getAssetDiskPath, getAssetURL, mediaTypeToExt } from "./assets";
+import { getAssetDiskPath, getAssetPath, getAssetURL, mediaTypeToExt } from "./assets";
 import { randomBytes } from "node:crypto";
 
 export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
@@ -45,14 +45,13 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
     throw new BadRequestError("Missing Content-Type for thumbnail");
   }
 
-  const ext = mediaTypeToExt(mediaType);
-  const filename = `${randomBytes(32).toString("base64url")}${ext}`;
+  const assetPath = getAssetPath(mediaType);
+  const assetDiskPath = getAssetDiskPath(cfg, assetPath); 
 
-  const assetDiskPath = getAssetDiskPath(cfg, filename); 
   await Bun.write(assetDiskPath, file);
 
    
-  const urlPath = getAssetURL(cfg, filename);
+  const urlPath = getAssetURL(cfg, assetPath);
   video.thumbnailURL = urlPath;
 
   await updateVideo(cfg.db, video);
