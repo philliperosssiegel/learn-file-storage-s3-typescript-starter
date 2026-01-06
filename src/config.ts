@@ -1,6 +1,6 @@
 import { newDatabase } from "./db/db";
 import type { Database } from "bun:sqlite";
-import { S3Client } from "bun";
+import { s3, type S3Client } from "bun";
 
 export type ApiConfig = {
   db: Database;
@@ -22,15 +22,10 @@ const jwtSecret = envOrThrow("JWT_SECRET");
 const platform = envOrThrow("PLATFORM");
 const filepathRoot = envOrThrow("FILEPATH_ROOT");
 const assetsRoot = envOrThrow("ASSETS_ROOT");
-// const s3client: S3Client = s3;
+const s3client = s3;
 const s3Bucket = envOrThrow("S3_BUCKET");
 const s3Region = envOrThrow("S3_REGION");
 const s3CfDistribution = envOrThrow("S3_CF_DISTRO");
-const s3client = new S3Client({
-  accessKeyId: envOrThrow("AWS_ACCESS_KEY_ID"),
-  secretAccessKey: envOrThrow("AWS_SECRET_ACCESS_KEY"),
-  region: s3Region,  
-})
 const port = envOrThrow("PORT");
 
 const db = newDatabase(pathToDB);
@@ -55,7 +50,3 @@ function envOrThrow(key: string) {
   }
   return envVar;
 }
-
-
-console.log("AWS_ACCESS_KEY_ID from env:", process.env.AWS_ACCESS_KEY_ID);
-console.log("AWS_SECRET_ACCESS_KEY from env:", process.env.AWS_SECRET_ACCESS_KEY);

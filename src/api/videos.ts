@@ -6,8 +6,8 @@ import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import { getBearerToken, validateJWT } from "../auth";
 import { getVideo, updateVideo } from "../db/videos";
 import { getAssetDiskPath, getAssetPath } from "./assets";
-import { randomBytes } from "crypto";
 import { rm } from "node:fs/promises";
+import { uploadVideoToS3 } from "../s3";
 
 export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const { videoId } = req.params as { videoId?: string };
@@ -57,20 +57,16 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
 
   //S3 handling
 
-  // await cfg.s3Client.file(assetDiskPath);
-  const key = `${randomBytes(32).toString("hex")}.mp4`
-  // await cfg.s3Client.file(key, cfg.s3Bucket).write(Bun.file(assetDiskPath), mediaType);
+  const key = `${videoId}.mp4`
+  await uploadVideoToS3(cfg, key, assetDiskPath, mediaType)
 
-  await cfg.s3Client.file(key, { bucket: cfg.s3Bucket }).write(Bun.file(assetDiskPath), { type: mediaType})
-  
   // Delete the temporary video asset from local storage
   await rm(assetDiskPath, {force: true });
 
   // Update the videoURL in the database with the S3 bucket and key
   const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${key}` //getAssetURL(cfg, assetPath);
   video.videoURL = videoURL;
-
-  await updateVideo(cfg.db, video);
+  updateVideo(cfg.db, video);
 
   return respondWithJSON(200, video);
 }
